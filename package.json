@@ -1,0 +1,17 @@
+{
+  "name": "game",
+  "version": "1.0.0",
+  "description": "Démonstration Three.js d'un donjon 3D jouable.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node scripts/smoke.js"
+  },
+  "keywords": [
+    "three.js",
+    "donjon",
+    "demo"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
