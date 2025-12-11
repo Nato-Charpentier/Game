@@ -70,6 +70,9 @@ runeSet.runes.forEach((r) => scene.add(r.mesh));
 scene.add(runeSet.pedestal);
 scene.add(runeSet.portal);
 
+const spellbook = createSpellbook();
+scene.add(spellbook.mesh);
+
 const goal = createGoal();
 scene.add(goal.door);
 scene.add(goal.key);
@@ -84,6 +87,10 @@ specters.forEach((s) => scene.add(s.mesh));
 const turrets = createTurrets();
 turrets.forEach((t) => scene.add(t.mesh));
 const projectiles = [];
+const arcaneBolts = [];
+
+const golem = createGolem();
+scene.add(golem.mesh);
 
 const campfire = createCampfire();
 scene.add(campfire.mesh);
@@ -105,6 +112,7 @@ const staminaFill = document.getElementById('staminaFill');
 const runeProgress = document.getElementById('runeProgress');
 const portalStatus = document.getElementById('portalStatus');
 const crosshair = document.getElementById('crosshair');
+const spellStatus = document.getElementById('spellStatus');
 
 const staminaMax = 100;
 let stamina = staminaMax;
@@ -115,12 +123,15 @@ let cameraMode = 'third';
 let yaw = 0;
 let pitch = 0;
 let pointerLocked = false;
+let hasSpellbook = false;
+let boltCooldown = 0;
 
 updateHealthDisplay();
-updateObjective('Trouve la clé pour ouvrir la porte.');
+updateObjective('Trouve la clé et cherche le grimoire pour percer la défense du gardien.');
 updateScore(0);
 updateRuneUI();
 updateCrosshair();
+updateSpellStatus();
 
 canvas.addEventListener('click', () => {
   if (cameraMode === 'fps' && !pointerLocked) {
@@ -140,13 +151,21 @@ document.addEventListener('mousemove', (event) => {
   }
 });
 
+window.addEventListener('mousedown', (event) => {
+  if (event.button === 0) {
+    fireArcaneBolt();
+  }
+});
+
 function animate() {
   const delta = clock.getDelta();
   exhaustionNoticeCooldown = Math.max(0, exhaustionNoticeCooldown - delta);
+  boltCooldown = Math.max(0, boltCooldown - delta);
   handleInput(delta);
   updateEnemies(delta);
   updateLoot(delta);
   updateManaCrystal(delta);
+  updateSpellbook(delta);
   updateRunes(delta);
   updatePortal(delta);
   updateKey(delta);
@@ -156,9 +175,12 @@ function animate() {
   updateSpecters(delta);
   updateTurrets(delta);
   updateProjectiles(delta);
+  updateArcaneBolts(delta);
+  updateGolem(delta);
   updateCampfire(delta);
   updateShieldEffect(delta);
   updateStaminaBar();
+  updateSpellStatus();
   flickerTorches();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
@@ -301,7 +323,7 @@ function createEnemies() {
     const mesh = new THREE.Mesh(geo.clone(), mat);
     mesh.castShadow = true;
     mesh.position.copy(o.base);
-    foes.push({ mesh, ...o });
+    foes.push({ mesh, ...o, health: 1 });
   });
   return foes;
 }
@@ -346,6 +368,26 @@ function createManaCrystal() {
   mesh.castShadow = true;
 
   return { mesh, active: true };
+}
+
+function createSpellbook() {
+  const book = new THREE.Group();
+  const cover = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.12, 1.2),
+    new THREE.MeshStandardMaterial({ color: 0x3d2e6b, metalness: 0.2, roughness: 0.5 })
+  );
+  cover.castShadow = true;
+  book.add(cover);
+
+  const gem = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.16),
+    new THREE.MeshStandardMaterial({ color: 0x9ff1ff, emissive: 0x53b1d9, metalness: 0.4 })
+  );
+  gem.position.set(0, 0.2, 0);
+  cover.add(gem);
+
+  book.position.set(-2, 0.2, -8);
+  return { mesh: book, active: true };
 }
 
 function createRunes() {
@@ -471,8 +513,39 @@ function createTurrets() {
     base.add(head);
     base.userData.head = head;
     base.userData.cooldown = 2 + Math.random();
-    return { mesh: base };
+    return { mesh: base, health: 2 };
   });
+}
+
+function createGolem() {
+  const golem = new THREE.Group();
+
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.9, 1, 0.6, 12),
+    new THREE.MeshStandardMaterial({ color: 0x5b4a3b, roughness: 0.8 })
+  );
+  base.castShadow = true;
+  base.receiveShadow = true;
+  golem.add(base);
+
+  const torso = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 1.2, 0.8),
+    new THREE.MeshStandardMaterial({ color: 0x8a7b65, roughness: 0.6 })
+  );
+  torso.position.y = 0.9;
+  torso.castShadow = true;
+  golem.add(torso);
+
+  const eye = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 12, 12),
+    new THREE.MeshStandardMaterial({ color: 0xffc857, emissive: 0xff8c42 })
+  );
+  eye.position.set(0, 1.4, 0.36);
+  torso.add(eye);
+
+  golem.position.set(2, 0, -5.5);
+
+  return { mesh: golem, health: 5, alive: true, cooldown: 0, awake: false };
 }
 
 function createCampfire() {
@@ -714,6 +787,24 @@ function updateManaCrystal(delta) {
   }
 }
 
+function updateSpellbook(delta) {
+  if (!spellbook.active || gameOver) return;
+  spellbook.mesh.rotation.y += delta * 1.1;
+  spellbook.mesh.position.y = 0.2 + Math.sin(clock.elapsedTime * 3) * 0.06;
+
+  const dist = spellbook.mesh.position.distanceTo(player.mesh.position);
+  if (dist < 1) {
+    spellbook.active = false;
+    spellbook.mesh.visible = false;
+    hasSpellbook = true;
+    boltCooldown = 0;
+    updateSpellStatus();
+    updateObjective('Le grimoire est à toi : tente le tir arcanique pour affaiblir le gardien.');
+    tip.textContent = 'Grimoire récupéré, clique pour lancer un trait arcanique !';
+    updateScore(5);
+  }
+}
+
 function updateRunes(delta) {
   runeSet.runes.forEach((rune) => {
     if (rune.collected) return;
@@ -829,7 +920,7 @@ function createSpecters() {
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.copy(p);
     mesh.castShadow = true;
-    return { mesh, wanderOffset: idx * 0.8 };
+    return { mesh, wanderOffset: idx * 0.8, health: 1 };
   });
 }
 
@@ -902,6 +993,91 @@ function updateProjectiles(delta) {
   }
 }
 
+function fireArcaneBolt() {
+  if (gameOver) return;
+  if (!hasSpellbook) {
+    tip.textContent = 'Trouve le grimoire avant de canaliser un tir arcanique.';
+    return;
+  }
+  if (boltCooldown > 0) return;
+
+  const origin = player.mesh.position.clone();
+  origin.y += cameraMode === 'fps' ? 1.4 : 1.1;
+
+  const lookEuler =
+    cameraMode === 'fps'
+      ? new THREE.Euler(pitch, yaw, 0, 'YXZ')
+      : new THREE.Euler(0, player.mesh.rotation.y, 0);
+  const direction = new THREE.Vector3(0, 0, -1).applyEuler(lookEuler).normalize();
+  direction.y = THREE.MathUtils.clamp(direction.y, -0.35, 0.35);
+
+  const bolt = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.08, 0.7, 6),
+    new THREE.MeshStandardMaterial({ color: 0x9fe6ff, emissive: 0x4ab9ff, metalness: 0.5, roughness: 0.1 })
+  );
+  bolt.rotation.x = Math.PI / 2;
+  bolt.position.copy(origin);
+  bolt.castShadow = true;
+  arcaneBolts.push({ mesh: bolt, velocity: direction.multiplyScalar(10), life: 3 });
+  scene.add(bolt);
+
+  boltCooldown = 0.75;
+  tip.textContent = 'Trait arcanique lancé !';
+  updateSpellStatus();
+}
+
+function checkBoltHits(list, bolt, boltIndex, radius, reward, message) {
+  for (let j = list.length - 1; j >= 0; j -= 1) {
+    const target = list[j];
+    if (target.mesh.position.distanceTo(bolt.mesh.position) < radius) {
+      target.health = (target.health || 1) - 1;
+      scene.remove(bolt.mesh);
+      arcaneBolts.splice(boltIndex, 1);
+      if (target.health <= 0) {
+        scene.remove(target.mesh);
+        list.splice(j, 1);
+        updateScore(reward);
+        if (message) tip.textContent = message;
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+function updateArcaneBolts(delta) {
+  for (let i = arcaneBolts.length - 1; i >= 0; i -= 1) {
+    const bolt = arcaneBolts[i];
+    bolt.life -= delta;
+    bolt.mesh.position.add(bolt.velocity.clone().multiplyScalar(delta));
+    bolt.mesh.rotation.y += delta * 8;
+
+    if (bolt.life <= 0 || collides(bolt.mesh.position)) {
+      scene.remove(bolt.mesh);
+      arcaneBolts.splice(i, 1);
+      continue;
+    }
+
+    if (checkBoltHits(enemies, bolt, i, 0.9, 6, 'Orbe dissipée !')) continue;
+    if (checkBoltHits(specters, bolt, i, 0.9, 8, 'Spectre dissipé !')) continue;
+    if (checkBoltHits(turrets, bolt, i, 0.9, 12, 'Tourelle détruite !')) continue;
+
+    if (golem.alive && bolt.mesh.position.distanceTo(golem.mesh.position) < 1.3) {
+      scene.remove(bolt.mesh);
+      arcaneBolts.splice(i, 1);
+      golem.health -= 1;
+      tip.textContent = 'Le golem est ébranlé par la magie !';
+      if (golem.health <= 0) {
+        golem.alive = false;
+        scene.remove(golem.mesh);
+        updateScore(25);
+        updateObjective('Golem vaincu : ouvre le coffre ou poursuis tes quêtes.');
+        tip.textContent = 'Gardien terrassé !';
+      }
+    }
+  }
+}
+
 function updateCampfire(delta) {
   campfire.mesh.userData.cooldown = Math.max(0, campfire.mesh.userData.cooldown - delta);
   const flame = campfire.mesh.userData.flame;
@@ -914,6 +1090,34 @@ function updateCampfire(delta) {
     healPlayer(1);
     stamina = staminaMax;
     tip.textContent = 'Feu de camp : repos complet !';
+  }
+}
+
+function updateGolem(delta) {
+  if (!golem.alive) return;
+  golem.cooldown = Math.max(0, golem.cooldown - delta);
+
+  const dist = golem.mesh.position.distanceTo(player.mesh.position);
+  if (dist < 8.5) {
+    golem.awake = true;
+  }
+
+  if (golem.awake) {
+    const direction = player.mesh.position.clone().sub(golem.mesh.position).setY(0);
+    if (direction.lengthSq() > 0.001) {
+      direction.normalize();
+      golem.mesh.position.add(direction.multiplyScalar(delta * 1.1));
+      golem.mesh.position.x = THREE.MathUtils.clamp(golem.mesh.position.x, -8.5, 8.5);
+      golem.mesh.position.z = THREE.MathUtils.clamp(golem.mesh.position.z, -9, 9);
+    }
+  }
+
+  golem.mesh.rotation.y += delta * 0.4;
+
+  if (dist < 1.2 && golem.cooldown === 0) {
+    damagePlayer(1);
+    golem.cooldown = 1.4;
+    tip.textContent = 'Le golem te percute !';
   }
 }
 
@@ -952,6 +1156,20 @@ function updateStaminaBar() {
   staminaFill.style.background = ratio < 0.2
     ? 'linear-gradient(90deg, #e69d7d, #e85f5f)'
     : 'linear-gradient(90deg, #8ee67d, #4bb14b)';
+}
+
+function updateSpellStatus() {
+  if (!spellStatus) return;
+  if (!hasSpellbook) {
+    spellStatus.textContent = 'Grimoire non découvert.';
+    return;
+  }
+
+  if (boltCooldown > 0) {
+    spellStatus.textContent = 'Canalisation... recharge en cours';
+  } else {
+    spellStatus.textContent = 'Trait arcanique prêt.';
+  }
 }
 
 function updateCrosshair() {

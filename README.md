@@ -23,6 +23,7 @@ Une vérification rapide existe pour s'assurer que les éléments HUD et les mé
 - **Shift** : Sprint
 - **F** : Basculer la vue FPS / troisième personne (capture souris en FPS)
 - **Clic** : Viser en vue FPS
+- **Clic gauche** : Tir arcanique (après avoir ramassé le grimoire)
 
 ## Fonctionnalités
 
@@ -41,5 +42,7 @@ Une vérification rapide existe pour s'assurer que les éléments HUD et les mé
 - Feu de camp réparateur : approche-toi pour récupérer un peu de vie et recharger toute ton endurance.
 - Vue FPS optionnelle avec pointeur de visée, souris capturée pour tourner la caméra et immersion façon donjon crawler.
 - Décors supplémentaires (colonnes, bannières) pour densifier les couloirs et donner des repères visuels.
+- Grimoire arcanique à trouver pour débloquer un tir magique, utile pour dissiper spectres, tourelles et orbes.
+- Golem gardien patrouillant : ses charges blessent mais il peut être neutralisé avec les traits arcaniques.
 
 Cette base peut servir de point de départ pour ajouter des quêtes, des combats au tour par tour ou un maître du jeu numérique.
