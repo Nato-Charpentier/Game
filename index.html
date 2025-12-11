@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Donjon 3D - Démo</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <style>
+    body {
+      margin: 0;
+      background: #0d0d0f;
+      color: #f3f3f3;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+    #hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 10px 16px;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+    #hud .panel {
+      background: rgba(0, 0, 0, 0.45);
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    }
+    #hud h1 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+    }
+    #hud ul {
+      margin: 4px 0 0;
+      padding: 0 0 0 18px;
+      line-height: 1.4;
+    }
+    #hud p {
+      margin: 0;
+      font-size: 14px;
+    }
+    #stamina {
+      display: grid;
+      gap: 4px;
+      margin-top: 6px;
+      font-size: 13px;
+    }
+    #staminaBar {
+      width: 160px;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    #staminaFill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #8ee67d, #4bb14b);
+      transition: width 0.2s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div class="panel">
+      <h1>Donjon 3D</h1>
+      <p>Explore un donjon minimaliste façon Donjons &amp; Dragons.</p>
+    </div>
+    <div class="panel" id="status">
+      <strong>Vie :</strong> <span id="health">❤❤❤</span>
+      <div id="tip" style="opacity: 0.85; font-size: 13px; margin-top: 4px;">Cueille les potions vertes et le cristal violet pour survivre.</div>
+    </div>
+    <div class="panel">
+      <strong>Objectif</strong>
+      <p id="objective">Trouve la clé pour ouvrir la porte et atteindre le coffre.</p>
+      <p id="score" style="opacity: 0.85; font-size: 13px; margin: 4px 0 0;">Butin : 0</p>
+    </div>
+    <div class="panel">
+      <strong>Contrôles</strong>
+      <ul>
+        <li>Z / S : Avancer / Reculer</li>
+        <li>Q / D : Rotation</li>
+        <li>Flèches : Pas latéraux</li>
+        <li>Space : Saut</li>
+        <li>Shift : Sprint (consomme l'endurance)</li>
+      </ul>
+    </div>
+    <div class="panel" id="stamina">
+      <div>Endurance</div>
+      <div id="staminaBar">
+        <div id="staminaFill"></div>
+      </div>
+    </div>
+  </div>
+  <canvas id="game"></canvas>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
